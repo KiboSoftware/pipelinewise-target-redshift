@@ -375,6 +375,13 @@ class DbSync:
             ]
         )
 
+    def rerecord_to_csv_fields(self, record):
+        flatten = flatten_record(record, self.flatten_schema, max_level=self.data_flattening_max_level)
+        return [
+                flatten[name] if name in flatten and (flatten[name] == 0 or flatten[name]) else ''
+                for name in self.flatten_schema
+            ]
+
     def put_to_s3(self, file, stream, count, suffix = ""):
         self.logger.info("Uploading {} rows to S3".format(count))
 
@@ -454,7 +461,7 @@ class DbSync:
                 copy_sql = """COPY {table} ({columns}) FROM 's3://{s3_bucket}/{s3_key}'
                     {copy_credentials}
                     {copy_options}
-                    DELIMITER ',' REMOVEQUOTES ESCAPE{compression_option}
+                    DELIMITER ',' CSV{compression_option}
                 """.format(
                     table=stage_table,
                     columns=', '.join([c['name'] for c in columns_with_trans]),
