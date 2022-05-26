@@ -29,7 +29,8 @@ setup(name="pipelinewise-target-redshift",
                 "pylint==2.4.2",
                 "pytest==5.3.0",
                 "mock==3.0.5",
-                "coverage==4.5.4"
+                "coverage==4.5.4",
+                "python-json-logger==2.0.2"
             ]
       },
       entry_points="""
