@@ -407,11 +407,12 @@ def flush_records(stream, records_to_load, row_count, db_sync, compression=None,
     for chunk_number, chunk in enumerate(chunks, start=1):
         _, csv_file = mkstemp(suffix=file_extension + "." + str(chunk_number), prefix=f'{stream}_', dir=temp_dir)
         csv_files = csv_files + [csv_file]
-        with open(csv_file, 'w', newline='',encoding='utf-8') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            for record in chunk:
-                csv_line = db_sync.rerecord_to_csv_fields(record)
-                csv_writer.writerow(csv_line)
+        with open_method(csv_file, 'w+b') as output:
+            with io.TextIOWrapper(output, encoding='utf-8') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                for record in chunk:
+                    csv_line = db_sync.rerecord_to_csv_fields(record)
+                    csv_writer.writerow(csv_line)
         s3_key = db_sync.put_to_s3(
             csv_file,
             stream,
