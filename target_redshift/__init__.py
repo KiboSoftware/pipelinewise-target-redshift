@@ -21,6 +21,10 @@ from itertools import islice
 from target_redshift.db_sync import DbSync
 
 LOGGER = get_logger('target_redshift')
+try:
+    LOGGER.root.handlers[0].formatter.rename_fields = {"levelname":"level"}
+except:
+    LOGGER.info('unable to add json override')
 
 DEFAULT_BATCH_SIZE_ROWS = 100000
 DEFAULT_PARALLELISM = 0  # 0 The number of threads used to flush tables
