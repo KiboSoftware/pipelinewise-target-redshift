@@ -348,7 +348,7 @@ class DbSync:
         rs_table_name = table_name.replace('.', '_').replace('-', '_').lower()
 
         if is_stage:
-            rs_table_name = 'stg_{}'.format(rs_table_name)
+            rs_table_name = 'stg_{}{}'.format(self.connection_config.get('staging_prefix','') , rs_table_name)
 
         if without_schema:
             return f'"{rs_table_name.upper()}"'
