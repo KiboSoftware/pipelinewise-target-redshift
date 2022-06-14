@@ -12,7 +12,7 @@ import psycopg2.extras
 
 import inflection
 from singer import get_logger
-
+from datetime import datetime
 
 DEFAULT_VARCHAR_LENGTH = 10000
 SHORT_VARCHAR_LENGTH = 256
@@ -218,7 +218,7 @@ class DbSync:
         self.connection_config = connection_config
         self.stream_schema_message = stream_schema_message
         self.table_cache = table_cache
-
+        self.staging_prefix = datetime.now().strftime("%y%m%d%H%M%f")
         # logger to be used across the class's methods
         self.logger = get_logger('target_redshift')
 
@@ -348,7 +348,7 @@ class DbSync:
         rs_table_name = table_name.replace('.', '_').replace('-', '_').lower()
 
         if is_stage:
-            rs_table_name = 'stg_{}{}'.format(self.connection_config.get('staging_prefix','') , rs_table_name)
+            rs_table_name = 'stg_{}{}'.format(self.staging_prefix , rs_table_name)
 
         if without_schema:
             return f'"{rs_table_name.upper()}"'
