@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from distutils.log import error
 import io
 import json
 import os
@@ -412,7 +413,7 @@ def flush_records(stream, records_to_load, row_count, db_sync, compression=None,
         _, csv_file = mkstemp(suffix=file_extension + "." + str(chunk_number), prefix=f'{stream}_', dir=temp_dir)
         csv_files = csv_files + [csv_file]
         with open_method(csv_file, 'w+b') as output:
-            with io.TextIOWrapper(output, encoding='utf-8') as csvfile:
+            with io.TextIOWrapper(output, encoding='utf-8', errors='replace') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 for record in chunk:
                     csv_line = db_sync.rerecord_to_csv_fields(record)
