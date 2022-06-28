@@ -17,7 +17,7 @@ from datetime import datetime
 DEFAULT_VARCHAR_LENGTH = 10000
 SHORT_VARCHAR_LENGTH = 256
 LONG_VARCHAR_LENGTH = 65535
-
+BATCH_START = datetime.now().isoformat()
 
 def validate_config(config):
     errors = []
@@ -221,6 +221,8 @@ class DbSync:
         self.staging_prefix = datetime.now().strftime("%y%m%d%H%M%f")
         # logger to be used across the class's methods
         self.logger = get_logger('target_redshift')
+        # pattern for item test
+        self.item_pattern = re.compile( "items\"$", re.IGNORECASE)
 
         # Validate connection configuration
         config_errors = validate_config(connection_config)
@@ -397,6 +399,9 @@ class DbSync:
         self.s3.upload_file(file, bucket, s3_key, ExtraArgs=extra_args)
 
         return s3_key
+    
+    def table_supports_deletes (self, table_name):
+        return re.search(self.item_pattern, table_name) and self.flatten_schema.get('_sdc_source_key__id') and self.flatten_schema.get('_sdc_batched_at')
 
     def delete_from_s3(self, s3_key):
         self.logger.info("Deleting {} from S3".format(s3_key))
@@ -425,6 +430,7 @@ class DbSync:
             with connection.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                 inserts = 0
                 updates = 0
+                deletes = 0
 
                 # Step 1: Create stage table if not exists
                 cur.execute(self.drop_table_query(is_stage=True))
@@ -512,6 +518,25 @@ class DbSync:
                     self.logger.debug("Running query: {}".format(insert_sql))
                     cur.execute(insert_sql)
                     inserts = cur.rowcount
+                    
+
+                    # Step 5/a/3: delte orphaned records
+                    
+                    if self.table_supports_deletes(target_table):
+                        delete_sql = """delete from {} 
+                        where _sdc_source_key__id in 
+                        (select stg._sdc_source_key__id from {} stg ) 
+                        and _sdc_batched_at < '{}'
+                        """.format(
+                            target_table,
+                            stage_table,
+                            BATCH_START
+                        )
+                        self.logger.debug("Running query: {}".format(delete_sql))
+                        cur.execute(delete_sql)
+                        deletes = cur.rowcount
+                        if deletes > 0 :
+                            self.logger.debug("deleted {}".format(deletes))
 
                 # Step 5/b: Insert only if no primary key
                 else:
@@ -533,7 +558,7 @@ class DbSync:
 
                 self.logger.info('Loading into {}: {}'.format(
                     self.table_name(stream, False),
-                    json.dumps({'inserts': inserts, 'updates': updates, 'size_bytes': size_bytes})))
+                    json.dumps({'inserts': inserts, 'updates': updates, 'deletes': deletes, 'size_bytes': size_bytes})))
 
     def primary_key_merge_condition(self):
         stream_schema_message = self.stream_schema_message
