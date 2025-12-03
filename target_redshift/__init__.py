@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-from distutils.log import error
 import io
 import json
 import os
@@ -445,6 +444,7 @@ def flush_records(stream, records_to_load, row_count, db_sync, compression=None,
 def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-c', '--config', help='Config file')
+    arg_parser.add_argument('-i', '--input', help='Input file (defaults to stdin if not provided)')
     args = arg_parser.parse_args()
 
     if args.config:
@@ -456,8 +456,12 @@ def main():
     # Init columns cache
     table_cache = load_table_cache(config)
 
-    singer_messages = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
-    persist_lines(config, singer_messages, table_cache)
+    if args.input:
+        with open(args.input, 'r', encoding='utf-8') as input_file:
+            persist_lines(config, input_file, table_cache)
+    else:
+        singer_messages = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
+        persist_lines(config, singer_messages, table_cache)
 
     LOGGER.debug("Exiting normally")
 
